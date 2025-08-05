@@ -407,6 +407,8 @@ class OpenAILanguageModel(BaseLanguageModel):
   model_id: str = 'gpt-4o-mini'
   api_key: str | None = None
   organization: str | None = None
+  base_url: str | None = None
+  extra_headers: Mapping[str, str] | None = None
   format_type: data.FormatType = data.FormatType.JSON
   temperature: float = 0.0
   max_workers: int = 10
@@ -422,6 +424,8 @@ class OpenAILanguageModel(BaseLanguageModel):
       model_id: str = 'gpt-4o-mini',
       api_key: str | None = None,
       organization: str | None = None,
+      base_url: str | None = None,
+      extra_headers: Mapping[str, str] | None = None,
       format_type: data.FormatType = data.FormatType.JSON,
       temperature: float = 0.0,
       max_workers: int = 10,
@@ -433,6 +437,8 @@ class OpenAILanguageModel(BaseLanguageModel):
       model_id: The OpenAI model ID to use (e.g., 'gpt-4o-mini', 'gpt-4o').
       api_key: API key for OpenAI service.
       organization: Optional OpenAI organization ID.
+      base_url: Optional base URL for OpenAI-compatible endpoints.
+      extra_headers: Optional HTTP headers for the API call.
       format_type: Output format (JSON or YAML).
       temperature: Sampling temperature.
       max_workers: Maximum number of parallel API calls.
@@ -442,6 +448,8 @@ class OpenAILanguageModel(BaseLanguageModel):
     self.model_id = model_id
     self.api_key = api_key
     self.organization = organization
+    self.base_url = base_url
+    self.extra_headers = extra_headers
     self.format_type = format_type
     self.temperature = temperature
     self.max_workers = max_workers
@@ -451,9 +459,13 @@ class OpenAILanguageModel(BaseLanguageModel):
       raise ValueError('API key not provided.')
 
     # Initialize the OpenAI client
-    self._client = openai.OpenAI(
-        api_key=self.api_key, organization=self.organization
-    )
+    client_kwargs = {
+        'api_key': self.api_key,
+        'organization': self.organization,
+    }
+    if self.base_url:
+      client_kwargs['base_url'] = self.base_url
+    self._client = openai.OpenAI(**client_kwargs)
 
     super().__init__(
         constraint=schema.Constraint(constraint_type=schema.ConstraintType.NONE)
@@ -484,6 +496,11 @@ class OpenAILanguageModel(BaseLanguageModel):
           max_tokens=config.get('max_output_tokens'),
           top_p=config.get('top_p'),
           n=1,
+          **(
+              {'extra_headers': self.extra_headers}
+              if self.extra_headers
+              else {}
+          ),
       )
 
       # Extract the response text using the v1.x response format
@@ -561,3 +578,33 @@ class OpenAILanguageModel(BaseLanguageModel):
       raise ValueError(
           f'Failed to parse output as {self.format_type.name}: {str(e)}'
       ) from e
+
+
+@dataclasses.dataclass(init=False)
+class OpenRouterLanguageModel(OpenAILanguageModel):
+  """Language model inference using OpenRouter's API."""
+
+  base_url: str = 'https://openrouter.ai/api/v1'
+  referer: str | None = None
+  title: str | None = None
+
+  def __init__(
+      self,
+      model_id: str = 'openrouter/horizon-beta',
+      api_key: str | None = None,
+      referer: str | None = None,
+      title: str | None = None,
+      **kwargs,
+  ) -> None:
+    headers: dict[str, str] = {}
+    if referer:
+      headers['HTTP-Referer'] = referer
+    if title:
+      headers['X-Title'] = title
+    super().__init__(
+        model_id=model_id,
+        api_key=api_key,
+        base_url=self.base_url,
+        extra_headers=headers or None,
+        **kwargs,
+    )
