@@ -209,5 +209,51 @@ class TestOpenAILanguageModel(absltest.TestCase):
     )
 
 
+class TestOpenRouterLanguageModel(absltest.TestCase):
+
+  @mock.patch("openai.OpenAI")
+  def test_openrouter_infer(self, mock_openai_class):
+    mock_client = mock.Mock()
+    mock_openai_class.return_value = mock_client
+
+    mock_response = mock.Mock()
+    mock_response.choices = [
+        mock.Mock(message=mock.Mock(content='{"answer": 42}'))
+    ]
+    mock_client.chat.completions.create.return_value = mock_response
+
+    model = inference.OpenRouterLanguageModel(
+        api_key="test-api-key",
+        referer="https://example.com",
+        title="Example Site",
+    )
+
+    results = list(model.infer(["What is the answer?"]))
+
+    mock_openai_class.assert_called_once_with(
+        api_key="test-api-key",
+        organization=None,
+        base_url="https://openrouter.ai/api/v1",
+    )
+
+    mock_client.chat.completions.create.assert_called_once_with(
+        model="openrouter/horizon-beta",
+        messages=mock.ANY,
+        temperature=0.0,
+        max_tokens=None,
+        top_p=None,
+        n=1,
+        extra_headers={
+            "HTTP-Referer": "https://example.com",
+            "X-Title": "Example Site",
+        },
+    )
+
+    expected_results = [
+        [inference.ScoredOutput(score=1.0, output='{"answer": 42}')]
+    ]
+    self.assertEqual(results, expected_results)
+
+
 if __name__ == "__main__":
   absltest.main()

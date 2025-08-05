@@ -50,8 +50,9 @@ Extract structured information with just a few lines of code.
 First, create a prompt that clearly describes what you want to extract. Then, provide a high-quality example to guide the model.
 
 ```python
-import langextract as lx
 import textwrap
+
+import langextract as lx
 
 # 1. Define the prompt and extraction rules
 prompt = textwrap.dedent("""\
@@ -202,6 +203,7 @@ Get API keys from:
 *   [AI Studio](https://aistudio.google.com/app/apikey) for Gemini models
 *   [Vertex AI](https://cloud.google.com/vertex-ai/generative-ai/docs/sdks/overview) for enterprise use
 *   [OpenAI Platform](https://platform.openai.com/api-keys) for OpenAI models
+*   [OpenRouter](https://openrouter.ai) for OpenAI-compatible models
 
 ### Setting up API key in your environment
 
@@ -271,6 +273,31 @@ result = lx.extract(
 ```
 
 Note: OpenAI models require `fence_output=True` and `use_schema_constraints=False` because LangExtract doesn't implement schema constraints for OpenAI yet.
+
+## Using OpenRouter
+
+LangExtract supports [OpenRouter](https://openrouter.ai), an OpenAI-compatible API that aggregates multiple model providers. Example OpenRouter configuration:
+
+```python
+from langextract.inference import OpenRouterLanguageModel
+
+result = lx.extract(
+    text_or_documents=input_text,
+    prompt_description=prompt,
+    examples=examples,
+    language_model_type=OpenRouterLanguageModel,
+    model_id="openrouter/horizon-beta",
+    api_key=os.environ.get('OPENROUTER_API_KEY'),
+    fence_output=True,
+    use_schema_constraints=False,
+    language_model_params={
+        'referer': 'https://your.site',
+        'title': 'Your Site Name',
+    },
+)
+```
+
+You can optionally supply a `referer` and `title` for request attribution on OpenRouter.
 
 ## More Examples
 
