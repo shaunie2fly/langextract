@@ -605,6 +605,6 @@ class OpenRouterLanguageModel(OpenAILanguageModel):
         model_id=model_id,
         api_key=api_key,
         base_url=self.base_url,
-        extra_headers=headers or None,
+        extra_headers=headers,
         **kwargs,
     )
